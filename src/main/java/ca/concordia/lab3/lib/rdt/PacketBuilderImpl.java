@@ -7,6 +7,7 @@ import java.util.Arrays;
 
 public class PacketBuilderImpl implements Packet.Builder {
     private Packet.Type type;
+    private Packet.State state;
     private BigInteger sequenceNumber;
     private Inet4Address peerAddress;
     private int peerPort;
@@ -15,6 +16,12 @@ public class PacketBuilderImpl implements Packet.Builder {
     @Override
     public PacketBuilderImpl setType(Packet.Type type) {
         this.type = type;
+        return this;
+    }
+
+    @Override
+    public Packet.Builder setState(Packet.State state) {
+        this.state = state;
         return this;
     }
 
@@ -55,7 +62,7 @@ public class PacketBuilderImpl implements Packet.Builder {
 
     @Override
     public Packet createPacket() {
-        return new Packet(type, sequenceNumber, peerAddress, peerPort, data);
+        return new Packet(type, state, sequenceNumber, peerAddress, peerPort, data);
     }
 
 }

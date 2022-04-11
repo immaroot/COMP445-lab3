@@ -7,7 +7,10 @@ import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -38,6 +41,57 @@ class PacketTest {
         Packet packet2 = builder.parseBytes(packet.getBytes());
 
         System.out.println(packet2);
+    }
 
+    @Test
+    void testSorting() throws UnknownHostException {
+
+        int port = 5000;
+        Inet4Address address = (Inet4Address) Inet4Address.getLocalHost();
+
+        Packet packet1 = Packet.Builder.getPacketBuilder()
+                .setSequenceNumber(BigInteger.valueOf(1))
+                .setType(Packet.Type.DATA)
+                .setState(Packet.State.READY)
+                .setPeerAddress(address)
+                .setPeerPort(port)
+                .setData(new byte[0])
+                .createPacket();
+
+        Packet packet2 = Packet.Builder.getPacketBuilder()
+                .setSequenceNumber(BigInteger.valueOf(2))
+                .setType(Packet.Type.DATA)
+                .setState(Packet.State.READY)
+                .setPeerAddress(address)
+                .setPeerPort(port)
+                .setData(new byte[0])
+                .createPacket();
+
+        Packet packet3 = Packet.Builder.getPacketBuilder()
+                .setSequenceNumber(BigInteger.valueOf(3))
+                .setType(Packet.Type.DATA)
+                .setState(Packet.State.READY)
+                .setPeerAddress(address)
+                .setPeerPort(port)
+                .setData(new byte[0])
+                .createPacket();
+
+        List<Packet> packets = new ArrayList<>();
+
+        packets.add(packet3);
+        packets.add(packet1);
+        packets.add(packet2);
+
+        System.out.println("Before sorting: ");
+        packets.forEach(System.out::println);
+
+        Collections.sort(packets);
+
+        System.out.println("After sorting: ");
+        packets.forEach(System.out::println);
+
+        assertEquals(1, packets.get(0).getSequenceNumber().intValue());
+        assertEquals(2, packets.get(1).getSequenceNumber().intValue());
+        assertEquals(3, packets.get(2).getSequenceNumber().intValue());
     }
 }

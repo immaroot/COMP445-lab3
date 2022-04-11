@@ -6,12 +6,14 @@ import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.Optional;
 
-public class Packet {
+public class Packet implements Comparable<Packet> {
 
     enum Type {
 
+        DATA(0),
         ACK(1),
         NAK(2),
         SYN(3),
@@ -34,18 +36,43 @@ public class Packet {
         }
     }
 
+    enum State {
+
+        READY(0),
+        SENT(1),
+        ACKED(2);
+
+        private final int value;
+
+        State(int value) {
+            this.value = value;
+        }
+
+        public int getValue() {
+            return value;
+        }
+
+        public static Optional<State> valueOf(int value) {
+            return Arrays.stream(values())
+                    .filter(packetType -> packetType.getValue() == value)
+                    .findFirst();
+        }
+    }
+
     private final Type type;
+    private State state;
     private final BigInteger sequenceNumber;
     private final Inet4Address peerAddress;
     private final int peerPort;
     private final byte[] data;
 
-    public Packet(Type type, BigInteger sequenceNumber, Inet4Address peerAddress, int peerPort, byte[] data) {
+    public Packet(Type type, State state, BigInteger sequenceNumber, Inet4Address peerAddress, int peerPort, byte[] data) {
 
         //Should not total more than 1024 bytes.
         assert data.length + 11 <=1024;
 
         this.type           = type;
+        this.state = state;
         this.sequenceNumber = sequenceNumber;
         this.peerAddress    = peerAddress;
         this.peerPort       = peerPort;
@@ -88,6 +115,31 @@ public class Packet {
         return byteBuffer.array();
     }
 
+    public Packet setState(State state) {
+        this.state = state;
+        return this;
+    }
+
+    @Override
+    public int compareTo(Packet o) {
+        return this.sequenceNumber.intValue() - o.sequenceNumber.intValue();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Packet)) return false;
+        Packet packet = (Packet) o;
+        return getPeerPort() == packet.getPeerPort() && getType() == packet.getType() && Objects.equals(getSequenceNumber(), packet.getSequenceNumber()) && Objects.equals(getPeerAddress(), packet.getPeerAddress()) && Arrays.equals(getData(), packet.getData());
+    }
+
+    @Override
+    public int hashCode() {
+        int result = Objects.hash(getType(), getSequenceNumber(), getPeerAddress(), getPeerPort());
+        result = 31 * result + Arrays.hashCode(getData());
+        return result;
+    }
+
     @Override
     public String toString() {
         return "Packet{" +
@@ -102,6 +154,8 @@ public class Packet {
     interface Builder {
 
         Packet.Builder setType(Packet.Type type);
+
+        Packet.Builder setState(Packet.State state);
 
         Packet.Builder setSequenceNumber(BigInteger sequenceNumber);
 
