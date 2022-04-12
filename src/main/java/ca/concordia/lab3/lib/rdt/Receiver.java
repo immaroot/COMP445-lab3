@@ -6,6 +6,7 @@ import java.net.*;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 
@@ -13,7 +14,7 @@ public class Receiver {
 
     private ArrayBlockingQueue<Packet> window;
     private final ArrayList<Packet> segments;
-    private final int MAX_WINDOW_SIZE = 3;
+    private final int MAX_WINDOW_SIZE = 1;
     private final int MAX_SEQUENCE_NUMBER = 10;
     private final Inet4Address address;
     private final Inet4Address peerAddress;
@@ -26,6 +27,7 @@ public class Receiver {
         this.peerAddress = peerAddress;
         this.port        = port;
         this.peerPort = peerPort;
+        this.window      = new ArrayBlockingQueue<>(MAX_WINDOW_SIZE);
         this.segments = new ArrayList<>();
     }
 
@@ -37,24 +39,32 @@ public class Receiver {
             Packet packet;
             do {
                 packet = receivePacket(socket);
-                if (segments.contains(packet)) {
+                if (window.contains(packet)) {
                     sendAck(packet.getSequenceNumber().intValue(), peerAddress, peerPort, socket);
                     continue;
+                }
+                if (window.remainingCapacity() > 0) {
+                    window.put(packet);
+                    size += packet.getData().length;
+                    adjustWindow();
                 }
                 if (packet.getType() == Packet.Type.DATA && packet.getData().length == 0) {
                     finished = true;
                 }
-
-                segments.add(packet);
-                size += packet.getData().length;
                 sendAck(packet.getSequenceNumber().intValue(), peerAddress, peerPort, socket);
             } while (!finished);
 
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
 
         return getBytes(segments, size);
+    }
+
+    private void adjustWindow() {
+        Packet packet = window.peek();
+        if (packet != null)
+            segments.add(window.poll());
     }
 
     private Packet receivePacket(DatagramSocket socket) throws IOException {
@@ -90,6 +100,7 @@ public class Receiver {
     }
 
     private byte[] getBytes(List<Packet> segments, int size) {
+        Collections.sort(segments);
         ByteBuffer bytes = ByteBuffer.allocate(size);
         for (Packet packet : segments) {
             bytes.put(packet.getData());
